@@ -1,0 +1,6 @@
+*.dll
+*.mdb
+package/Source/
+*.csproj
+*.sln
+*.userprefs
