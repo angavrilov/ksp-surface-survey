@@ -9,14 +9,14 @@ namespace SurfaceSurvey
         [KSPField(isPersistant=false)]
         public string experimentID;
 
-        public ScienceExperiment experiment;
+        private ScienceExperiment experiment;
 
         [KSPField(isPersistant=false)]
         public float xmitDataScalar = 1f;
 
-        // Seconds to generate one base amount of science
+        // Base science (before biome coeff) to generate per minute
         [KSPField(isPersistant=false)]
-        public float oneReportSeconds = 60f;
+        public float sciencePerMin = 1f;
 
         private float maxReportData = 0f;
         private float dataRate = 0f;
@@ -46,6 +46,7 @@ namespace SurfaceSurvey
 
         // Container to use for storing science
         private ModuleScienceContainer container;
+        private bool containerFull = false;
 
         // Actions and status string
         [KSPField(isPersistant=false)]
@@ -84,7 +85,7 @@ namespace SurfaceSurvey
                 if (experiment != null)
                 {
                     maxReportData = experiment.baseValue * experiment.dataScale;
-                    dataRate = maxReportData / oneReportSeconds;
+                    dataRate = sciencePerMin * experiment.dataScale / 60.0f;
                 }
 
                 container = part.Modules["ModuleScienceContainer"] as ModuleScienceContainer;
@@ -104,6 +105,7 @@ namespace SurfaceSurvey
 
         private void UpdateStatus()
         {
+            containerFull = false;
             if (!isActive)
                 statusString = "Disabled";
             else
@@ -137,7 +139,7 @@ namespace SurfaceSurvey
 
             if (!experiment.IsAvailableWhile(situation, body))
             {
-                statusString = "Bad Environment";
+                statusString = "Wrong Environment";
                 return;
             }
 
@@ -146,7 +148,7 @@ namespace SurfaceSurvey
 
             if (coeff <= 0.0f)
             {
-                statusString = "Bad Speed";
+                statusString = "Wrong Speed";
                 return;
             }
 
@@ -175,9 +177,23 @@ namespace SurfaceSurvey
                 statusString = String.Format("{0:F2}/min", coeff * dataRate * 60);
                 if (biome != "")
                     statusString += " (" + biome + ")";
+
+                containerFull = false;
             }
             else
+            {
                 statusString = "Container Full";
+
+                if (!containerFull)
+                {
+                    ScreenMessages.PostScreenMessage(
+                        "["+part.partInfo.title+"] Container Full: "+subject.title,
+                        5f, ScreenMessageStyle.UPPER_LEFT
+                    );
+
+                    containerFull = true;
+                }
+            }
         }
 
         protected float ComputeSpeedCoeff()
