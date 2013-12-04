@@ -1,4 +1,6 @@
 using System;
+using System.ComponentModel;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace SurfaceSurvey
@@ -12,11 +14,17 @@ namespace SurfaceSurvey
         private ScienceExperiment experiment;
 
         [KSPField(isPersistant=false)]
-        public float xmitDataScalar = 1f;
+        public ConfigDictionary<float> xmitDataScalar;
+
+        [SerializeField]
+        private ConfigNode xmitDataScalar_backup;
 
         // Base science (before biome coeff) to generate per minute
         [KSPField(isPersistant=false)]
-        public float sciencePerMin = 1f;
+        public ConfigDictionary<float> sciencePerMin;
+
+        [SerializeField]
+        private ConfigNode sciencePerMin_backup;
 
         private float maxReportData = 0f;
         private float dataRate = 0f;
@@ -46,6 +54,7 @@ namespace SurfaceSurvey
 
         // Container to use for storing science
         private ModuleScienceContainer container;
+        private KerbalSeat seat;
         private bool containerFull = false;
 
         // Actions and status string
@@ -71,8 +80,19 @@ namespace SurfaceSurvey
         // Initialization
         public override void OnAwake()
         {
+            ConfigDictionary<float>.AwakeInit(ref xmitDataScalar, ref xmitDataScalar_backup, 1f);
+            ConfigDictionary<float>.AwakeInit(ref sciencePerMin, ref sciencePerMin_backup, 1f);
+
             if (velocityCurve == null)
                 velocityCurve = new FloatCurve();
+        }
+
+        public override void OnLoad (ConfigNode node)
+        {
+            base.OnLoad(node);
+
+            xmitDataScalar.LoadDefault(node.GetValue("xmitDataScalar"));
+            sciencePerMin.LoadDefault(node.GetValue("sciencePerMin"));
         }
 
         public override void OnStart(PartModule.StartState state)
@@ -85,12 +105,14 @@ namespace SurfaceSurvey
                 if (experiment != null)
                 {
                     maxReportData = experiment.baseValue * experiment.dataScale;
-                    dataRate = sciencePerMin * experiment.dataScale / 60.0f;
+                    dataRate = experiment.dataScale / 60.0f;
                 }
 
                 container = part.Modules["ModuleScienceContainer"] as ModuleScienceContainer;
                 if (container == null)
                     Debug.Log("No ModuleScienceContainer found in SurfaceSurveyModule.OnStart");
+
+                seat = part.Modules["KerbalSeat"] as KerbalSeat;
             }
 
             UpdateActions();
@@ -127,7 +149,7 @@ namespace SurfaceSurvey
             if (TimeWarp.CurrentRate > 1f && TimeWarp.WarpMode == TimeWarp.Modes.HIGH)
                 return;
 
-            if (requireControlSource && !part.isControlSource)
+            if (requireControlSource && !part.isControlSource && (!seat || !seat.Occupant))
             {
                 statusString = "No Crew";
                 return;
@@ -152,13 +174,15 @@ namespace SurfaceSurvey
                 return;
             }
 
-            float data = ComputeRate(coeff);
+            ConsumeResource(ref coeff);
 
-            if (data <= 0.0f)
+            if (coeff <= 0.0f)
             {
                 statusString = "No Power";
                 return;
             }
+
+            float dataFlow = dataRate * coeff * sciencePerMin[body.name];
 
             // Compute biome and subject
             string biome = "";
@@ -172,9 +196,9 @@ namespace SurfaceSurvey
             ScienceSubject subject = ResearchAndDevelopment.GetExperimentSubject(experiment, situation, body, biome);
 
             // Store data in the container
-            if (StoreScience(container, subject, data))
+            if (StoreScience(container, subject, dataFlow * TimeWarp.fixedDeltaTime))
             {
-                statusString = String.Format("{0:F2}/min", coeff * dataRate * 60);
+                statusString = String.Format("{0:F2}/min", dataFlow * 60);
                 if (biome != "")
                     statusString += " (" + biome + ")";
 
@@ -209,15 +233,13 @@ namespace SurfaceSurvey
             return coeff;
         }
 
-        protected float ComputeRate(float coeff)
+        protected void ConsumeResource(ref float coeff)
         {
             if (resourceRate > 0)
             {
                 float amount = resourceRate * coeff * TimeWarp.fixedDeltaTime;
                 coeff *= Mathf.Min(1f, part.RequestResource(resourceName, amount) / amount);
             }
-
-            return coeff * dataRate * TimeWarp.fixedDeltaTime;
         }
 
         protected bool StoreScience(ModuleScienceContainer container, ScienceSubject subject, float data)
@@ -244,7 +266,8 @@ namespace SurfaceSurvey
             if (container.capacity > 0 && container.GetScienceCount() >= container.capacity)
                 return false;
 
-            var new_data = new ScienceData(data, xmitDataScalar, subject.id, subject.title);
+            float xmitValue = xmitDataScalar[vessel.mainBody.name];
+            var new_data = new ScienceData(data, xmitValue, subject.id, subject.title);
 
             if (container.AddData(new_data))
                 return true;
