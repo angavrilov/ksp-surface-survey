@@ -211,8 +211,8 @@ namespace SurfaceSurvey
                 if (!containerFull)
                 {
                     ScreenMessages.PostScreenMessage(
-                        "["+part.partInfo.title+"] Container Full: "+subject.title,
-                        5f, ScreenMessageStyle.UPPER_LEFT
+                        "<color=#ff9900ff>["+part.partInfo.title+"] <i>"+subject.title+":</i> Container Full.</color>",
+                        10f, ScreenMessageStyle.UPPER_LEFT
                     );
 
                     containerFull = true;
