@@ -190,7 +190,12 @@ namespace SurfaceSurvey
             {
                 biome = vessel.landedAt;
                 if (biome == "")
-                    biome = Toadicus_GetAtt().name;
+                {
+                    CBAttributeMap BiomeMap = vessel.mainBody.BiomeMap;
+                    double lat = vessel.latitude * Math.PI / 180d;
+                    double lon = vessel.longitude * Math.PI / 180d;
+                    biome = BiomeMap.GetAtt(lat, lon).name;
+                }
             }
 
             ScienceSubject subject = ResearchAndDevelopment.GetExperimentSubject(experiment, situation, body, biome);
@@ -298,77 +303,6 @@ namespace SurfaceSurvey
                 else
                     return ExperimentSituations.InSpaceHigh;
             }
-        }
-
-        // From here: http://forum.kerbalspaceprogram.com/threads/53709-Adding-Biome-Detection-to-Plugin
-        // The code is part of VOID, available under GNU GPL.
-        protected CBAttributeMap.MapAttribute Toadicus_GetAtt()
-        {
-            CBAttributeMap.MapAttribute mapAttribute;
-
-            try
-            {
-                CBAttributeMap BiomeMap = vessel.mainBody.BiomeMap;
-                double lat = vessel.latitude * Math.PI / 180d;
-                double lon = vessel.longitude * Math.PI / 180d;
-
-                lon -= Math.PI / 2d;
-
-                if (lon < 0d)
-                {
-                    lon += 2d * Math.PI;
-                }
-
-                float v = (float)(lat / Math.PI) + 0.5f;
-                float u = (float)(lon / (2d * Math.PI));
-
-                Color pixelBilinear = BiomeMap.Map.GetPixelBilinear(u, v);
-                mapAttribute = BiomeMap.defaultAttribute;
-
-                if (BiomeMap.Map != null)
-                {
-                    if (BiomeMap.exactSearch)
-                    {
-                        for (int i = 0; i < BiomeMap.Attributes.Length; ++i)
-                        {
-                            if (pixelBilinear == BiomeMap.Attributes[i].mapColor)
-                            {
-                                mapAttribute = BiomeMap.Attributes[i];
-                            }
-                        }
-                    }
-                    else
-                    {
-                        float zero = 0;
-                        float num = 1 / zero;
-                        for (int j = 0; j < BiomeMap.Attributes.Length; ++j)
-                        {
-                            Color mapColor = BiomeMap.Attributes[j].mapColor;
-                            float sqrMagnitude = ((Vector4)(mapColor - pixelBilinear)).sqrMagnitude;
-                            if (sqrMagnitude < num)
-                            {
-                                bool testCase = true;
-                                if (BiomeMap.nonExactThreshold != -1)
-                                {
-                                    testCase = (sqrMagnitude < BiomeMap.nonExactThreshold);
-                                }
-                                if (testCase)
-                                {
-                                    mapAttribute = BiomeMap.Attributes[j];
-                                    num = sqrMagnitude;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (NullReferenceException)
-            {
-                mapAttribute = new CBAttributeMap.MapAttribute();
-                mapAttribute.name = "N/A";
-            }
-
-            return mapAttribute;
         }
     }
 }
