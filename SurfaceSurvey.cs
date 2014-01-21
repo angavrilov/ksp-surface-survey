@@ -267,7 +267,7 @@ namespace SurfaceSurvey
                 return false;
 
             float xmitValue = xmitDataScalar[vessel.mainBody.name];
-            var new_data = new ScienceData(data, xmitValue, subject.id, subject.title);
+            var new_data = new ScienceData(data, xmitValue, 0f, subject.id, subject.title);
 
             if (container.AddData(new_data))
                 return true;
