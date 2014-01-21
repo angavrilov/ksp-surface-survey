@@ -108,11 +108,12 @@ namespace SurfaceSurvey
                     dataRate = experiment.dataScale / 60.0f;
                 }
 
-                container = part.Modules["ModuleScienceContainer"] as ModuleScienceContainer;
-                if (container == null)
-                    Debug.Log("No ModuleScienceContainer found in SurfaceSurveyModule.OnStart");
 
+                container = part.Modules["ModuleScienceContainer"] as ModuleScienceContainer;
                 seat = part.Modules["KerbalSeat"] as KerbalSeat;
+
+                if (container == null && seat == null)
+                    Debug.Log("No ModuleScienceContainer found in SurfaceSurveyModule.OnStart");
             }
 
             UpdateActions();
@@ -140,7 +141,9 @@ namespace SurfaceSurvey
             if (!isActive)
                 return;
 
-            if (experiment == null || vessel == null || container == null || !part.isControllable)
+            ModuleScienceContainer container = this.container;
+
+            if (experiment == null || vessel == null || (container == null && seat == null) || !part.isControllable)
             {
                 statusString = "Disconnected";
                 return;
@@ -153,6 +156,18 @@ namespace SurfaceSurvey
             {
                 statusString = "No Crew";
                 return;
+            }
+
+            if (container == null)
+            {
+                if (seat && seat.Occupant)
+                    container = seat.Occupant.Modules["ModuleScienceContainer"] as ModuleScienceContainer;
+
+                if (container == null)
+                {
+                    statusString = "No Storage";
+                    return;
+                }
             }
 
             // Check environment conditions
