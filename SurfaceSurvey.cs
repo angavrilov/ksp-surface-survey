@@ -44,6 +44,12 @@ namespace SurfaceSurvey
         [KSPField(isPersistant=false)]
         public float minVelocity = 1f;
 
+        // Max climb/descend rate, degrees
+        [KSPField(isPersistant=false)]
+        public float maxClimbAngle = 30f;
+
+        private float minVelocityRatio;
+
         // Scaling factor to tweak data collection rate based on velocity
         [KSPField(isPersistant=false)]
         public FloatCurve velocityCurve;
@@ -108,6 +114,7 @@ namespace SurfaceSurvey
                     dataRate = experiment.dataScale / 60.0f;
                 }
 
+                minVelocityRatio = Mathf.Cos(maxClimbAngle * Mathf.Deg2Rad);
 
                 container = part.Modules["ModuleScienceContainer"] as ModuleScienceContainer;
                 seat = part.Modules["KerbalSeat"] as KerbalSeat;
@@ -243,7 +250,7 @@ namespace SurfaceSurvey
         protected float ComputeSpeedCoeff()
         {
             float speed = (float)Vector3d.Exclude(vessel.upAxis, vessel.GetSrfVelocity()).magnitude;
-            if (speed < minVelocity)
+            if (speed < minVelocity || speed < (float)vessel.srfSpeed * minVelocityRatio)
                 return 0.0f;
 
             float coeff = 1.0f;
