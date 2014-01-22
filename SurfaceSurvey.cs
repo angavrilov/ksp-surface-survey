@@ -54,6 +54,10 @@ namespace SurfaceSurvey
         [KSPField(isPersistant=false)]
         public FloatCurve velocityCurve;
 
+        // Scale the velocity curve domain with altitude
+        [KSPField(isPersistant=false)]
+        public float altitudeCoefficient = 0f;
+
         // Activity state
         [KSPField(isPersistant=true)]
         public bool isActive = false;
@@ -255,7 +259,7 @@ namespace SurfaceSurvey
 
             float coeff = 1.0f;
             if (velocityCurve.minTime < velocityCurve.maxTime)
-                coeff = velocityCurve.Evaluate(speed);
+                coeff = velocityCurve.Evaluate(speed / (1f + altitudeCoefficient * (float)vessel.altitude * 0.001f));
 
             return coeff;
         }
